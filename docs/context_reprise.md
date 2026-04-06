@@ -85,7 +85,7 @@ Vue principale P&L par drop. Une ligne par drop avec :
 Dépenses overhead par mois et catégorie (SAAS, TAXES, STORAGE_BOX, EQUIPMENT, WEBSITE_REDESIGN). Une ligne par dépense avec : expense_id, completed_at, month, category_key, category_label, amount.
 
 ### v_product_performance
-Performance par variante par drop. Colonnes : drop_key, drop_id, shopify_product_id, shopify_variant_id, product_title, variant_name, sku, units_sold, revenue, cogs (cost × quantity), profit_brut, margin_pct, units_returned, return_rate_pct, refund_amount, stock_available.
+Performance par variante par drop. Colonnes : drop_key, #D7505Bdrop_id, shopify_product_id, shopify_variant_id, product_title, variant_name, sku, units_sold, revenue, cogs (cost × quantity), profit_brut, margin_pct, units_returned, return_rate_pct, refund_amount, stock_available.
 
 ### v_orders_detail
 Détail par commande pour analyses géo et paiement. Colonnes : shopify_order_id, ordered_at, month, financial_status, total_gross, currency, shipping_country_code, shipping_country, shipping_city, shipping_zip, payment_method, transaction_fee, drop_key, manual_order_id.
@@ -193,7 +193,20 @@ Waterfall = DATATABLE(
 
 ---
 
-## Structure du dashboard Power BI (5 pages)
+## Vues SQL supplémentaires
+
+### v_drop_velocity
+Ventes cumulatives par drop par jour depuis le lancement. Colonnes : drop_id, drop_key, launched_at, sale_date, units_sold_day, units_sold_cumulative, stock_initial, sell_through_pct_cumulative, days_since_launch.
+- `stock_initial` = units_sold (historique) + stock_available (actuel)
+- `days_since_launch = 0` = jour de lancement
+
+### v_drop_milestones
+Jalons d'écoulement par drop (50%, 70%, 90%). Colonnes : drop_id, drop_key, launched_at, stock_initial, milestone, milestone_date, days_to_milestone.
+- Dans Power Query : colonne `milestone` doit être typée en **Texte** (pas Percentage)
+
+---
+
+## Structure du dashboard Power BI (8 pages)
 
 ### Page 1 — Executive Overview
 - 7 cartes KPI : CA Brut, CA Net, Profit Net, Marge Nette, Nb Commandes, AOV, Taux Retour
@@ -203,15 +216,16 @@ Waterfall = DATATABLE(
 - Courbe évolution CA mensuel (v_orders_detail → month / CA Brut Mensuel)
 
 ### Page 2 — Drops
-- Tableau P&L complet par drop (toutes colonnes v_drop_pnl)
-- Histogramme groupé profit_net par drop (couleurs conditionnelles positif/négatif + ligne constante à 0)
+- "P&L détaillé par drop" — tableau toutes colonnes v_drop_pnl
+- "Profit net par drop" — histogramme groupé profit_net (couleurs conditionnelles positif/négatif + ligne constante à 0)
 - Anneau répartition CA Brut par drop
 - Histogramme empilé structure des coûts par drop (production, packaging, shipping_production, samples, shipping_labels, ads, influencer, photo_shoot, video_marketing, tax_vat)
+- "Taux de retour par drop" — histogramme avec drill down sur product_title (mesure Taux Retour Drill depuis v_product_performance)
 
 ### Page 3 — Produits
 - Segment filtre par drop_key
-- Tableau détail par variante (v_product_performance)
-- Histogramme groupé revenue + profit_brut par product_title
+- "Performances par variante" — matrice drop → produit → variante (v_product_performance)
+- "CA et volume de ventes par produit" — combo chart revenue (histogramme) + units_sold (courbe)
 - Histogramme units_sold par variant_name (ventes par taille)
 - Histogramme Taux Retour Produit par product_title
 
@@ -224,8 +238,26 @@ Waterfall = DATATABLE(
 ### Page 5 — Perso & Divers
 - Carte KPI Total Perso & Divers
 - Segment filtre par category
-- Tableau dépenses (expenses → started_at, description, total_amount, category)
+- "Détail des dépenses personnelles et diverses" — tableau (expenses → started_at, description, total_amount, category)
 - Histogramme Total Perso & Divers par category
+
+### Page 6 — Analyse
+- "Taux d'écoulement vs Marge nette par drop" — nuage de points (sell_through_pct / margin_pct / bulle = ca_brut)
+- "Impact des publicités sur la marge" — nuage de points (% Ads / margin_pct)
+- "Impact des retours sur la marge" — nuage de points (return_rate_pct / margin_pct)
+- "Structure des coûts par drop (% du total)" — matrice avec mesures % par catégorie
+
+### Page 7 — Stock & Projections
+- Carte KPI CA Potentiel Total
+- Carte KPI Stock Total Restant
+- "CA potentiel restant par drop" — histogramme groupé ca_potentiel par drop_key
+- Segment filtre par drop_key
+- "Stock restant et CA potentiel par variante" — matrice drop → produit → variante (stock_available, units_sold, ca_potentiel)
+
+### Page 8 — Vélocité & Écoulement
+- "Courbe d'écoulement cumulatif par drop" — courbe (days_since_launch / sell_through_pct_cumulative / légende drop_key)
+- "Jalons d'écoulement par drop" — matrice (drop_key / milestone / days_to_milestone + stock_initial)
+- "Ventes du jour de lancement par drop" — histogramme (drop_key / units_sold_cumulative filtré sur days_since_launch = 0)
 
 ---
 
